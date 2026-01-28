@@ -1,6 +1,7 @@
 class DomainManager {
-    constructor(domains = []) {
-        this.domains = domains; // List of domain strings
+    constructor() {
+        const envDomains = process.env.DOMAINS || '';
+        this.domains = envDomains.split(',').map(d => d.trim()).filter(d => d !== '');
         this.currentIndex = 0;
     }
 

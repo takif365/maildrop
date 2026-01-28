@@ -25,6 +25,27 @@ async function start() {
         return { status: 'healthy', service: 'MailDrop' };
     });
 
+    fastify.post('/receive', async (request, reply) => {
+        const { to, body } = request.body;
+        if (!to || !body) {
+            return reply.status(400).send({ error: 'Missing to or body' });
+        }
+
+        // Extract OTP (4-8 digits)
+        const otpMatch = body.match(/\b\d{4,8}\b/);
+        const otp = otpMatch ? otpMatch[0] : null;
+
+        if (otp) {
+            const token = await sessionManager.redis.get(`email_to_token:${to}`);
+            if (token) {
+                await sessionManager.updateSession(token, { otp });
+                await db.run('INSERT OR IGNORE INTO used_emails (email) VALUES (?)', [to]);
+            }
+        }
+
+        return { success: true };
+    });
+
     fastify.post('/generate', async (request, reply) => {
         const email = await emailGenerator.generate();
         const token = nanoid(32);
