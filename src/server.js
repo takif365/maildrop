@@ -11,6 +11,10 @@ async function start() {
     db = await setupDb();
     emailGenerator = new EmailGenerator(db);
 
+    fastify.get('/', async (request, reply) => {
+        return { status: 'healthy', service: 'MailDrop' };
+    });
+
     fastify.post('/generate', async (request, reply) => {
         const email = await emailGenerator.generate();
         const token = nanoid(32);

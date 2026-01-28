@@ -3,6 +3,14 @@ const Redis = require('ioredis');
 class SessionManager {
     constructor() {
         this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+
+        this.redis.on('error', (err) => {
+            console.error('Redis Connection Error:', err);
+        });
+
+        this.redis.on('connect', () => {
+            console.log('Connected to Redis');
+        });
     }
 
     async createSession(email, token, ttl = 120) {
