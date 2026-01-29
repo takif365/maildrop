@@ -10,7 +10,7 @@ export default {
             rawEmail += decoder.decode(value);
         }
 
-        // تواصل مع الرابط الخاص بك على Vercel
+        // Connect to your Vercel endpoint
         const response = await fetch("https://3rb.xyz/api/receive", {
             method: "POST",
             headers: {
