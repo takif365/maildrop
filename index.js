@@ -33,9 +33,11 @@ async function setupApp() {
             return {
                 status: 'online',
                 service: 'MailDrop API',
+                domainsCount: domainManager.domains.length,
                 env: {
                     hasRedis: !!process.env.REDIS_URL,
-                    hasDomains: !!process.env.DOMAINS
+                    hasDomainsEnv: !!process.env.DOMAINS,
+                    maildropDomainsKey: 'maildrop_domains'
                 }
             };
         });

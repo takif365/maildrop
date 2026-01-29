@@ -29,7 +29,7 @@ class DomainManager {
             if (fallbacks.length > 0) {
                 this.domains = fallbacks;
             } else {
-                throw new Error('No domains available in the pool. Please set DOMAINS env or maildrop_domains in Redis.');
+                throw new Error('DOMAIN_POOL_EMPTY: No domains found in Redis (maildrop_domains) or DOMAINS env. Please check your Upstash database.');
             }
         }
         const domain = this.domains[this.currentIndex];
