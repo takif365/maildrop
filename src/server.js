@@ -57,6 +57,7 @@ async function start() {
 
         if (otp) {
             await sessionManager.redis.set(`otp_store:${to}`, otp, 'EX', 600);
+            await sessionManager.redis.sadd('generated_emails_list', to);
             const token = await sessionManager.redis.get(`email_to_token:${to}`);
             if (token) {
                 await sessionManager.updateSession(token, { otp });

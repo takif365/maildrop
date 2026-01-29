@@ -40,6 +40,7 @@ async function processMail() {
         // Store OTP in Redis keyed by email for the new API
         // TTL 10 minutes (600 seconds)
         await sessionManager.redis.set(`otp_store:${recipient}`, otp, 'EX', 600);
+        await sessionManager.redis.sadd('generated_emails_list', recipient);
 
         // Keep legacy session support if token exists
         const token = await sessionManager.redis.get(`email_to_token:${recipient}`);
