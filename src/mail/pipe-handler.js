@@ -1,6 +1,5 @@
 const { simpleParser } = require('mailparser');
 const sessionManager = require('../core/SessionManager');
-const { setupDb } = require('../core/db');
 
 async function processMail() {
     const rawMail = await getStdin();
@@ -47,10 +46,6 @@ async function processMail() {
         if (token) {
             await sessionManager.updateSession(token, { otp });
         }
-
-        // Permanent storage
-        const db = await setupDb();
-        await db.run('INSERT OR IGNORE INTO used_emails (email) VALUES (?)', [recipient]);
     }
 }
 

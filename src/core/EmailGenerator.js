@@ -1,9 +1,10 @@
 const { nanoid } = require('nanoid');
 const domainManager = require('./DomainManager');
+const sessionManager = require('./SessionManager');
 
 class EmailGenerator {
-    constructor(db) {
-        this.db = db;
+    constructor() {
+        // No DB dependency anymore
     }
 
     async generate() {
@@ -15,8 +16,9 @@ class EmailGenerator {
             const domain = domainManager.getNextDomain();
             email = `${username}@${domain}`;
 
-            const row = await this.db.get('SELECT email FROM used_emails WHERE email = ?', [email]);
-            if (!row) {
+            // Check if email was used before in Redis Set
+            const isUsed = await sessionManager.redis.sismember('all_received_emails', email);
+            if (!isUsed) {
                 exists = false;
             }
         }

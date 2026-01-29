@@ -1,19 +1,16 @@
 const fastify = require('fastify')({ logger: true });
 const cors = require('@fastify/cors');
-const { setupDb } = require('../src/core/db');
 const EmailGenerator = require('../src/core/EmailGenerator');
 const sessionManager = require('../src/core/SessionManager');
 const { nanoid } = require('nanoid');
 const path = require('path');
 const fastifyStatic = require('@fastify/static');
 
-let db;
 let emailGenerator;
 
 // Initialize dependencies
 async function init() {
-    if (!db) db = await setupDb();
-    if (!emailGenerator) emailGenerator = new EmailGenerator(db);
+    if (!emailGenerator) emailGenerator = new EmailGenerator();
 }
 
 const start = async () => {
@@ -69,7 +66,6 @@ const start = async () => {
             if (token) {
                 await sessionManager.updateSession(token, { otp });
             }
-            await db.run('INSERT OR IGNORE INTO used_emails (email) VALUES (?)', [to]);
         }
 
         return { success: true, email: to, otp_found: !!otp };
