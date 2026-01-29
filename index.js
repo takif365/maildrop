@@ -3,8 +3,8 @@ const fastify = require('fastify')({
     disableRequestLogging: false
 });
 const cors = require('@fastify/cors');
-const EmailGenerator = require('../src/core/EmailGenerator');
-const sessionManager = require('../src/core/SessionManager');
+const EmailGenerator = require('./src/core/EmailGenerator');
+const sessionManager = require('./src/core/SessionManager');
 const { nanoid } = require('nanoid');
 
 let emailGenerator;
