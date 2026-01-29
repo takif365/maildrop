@@ -5,9 +5,32 @@ class DomainManager {
         this.currentIndex = 0;
     }
 
+    async syncWithRedis(redis) {
+        try {
+            const redisDomains = await redis.get('maildrop_domains');
+            if (redisDomains) {
+                const list = redisDomains.split(',').map(d => d.trim()).filter(d => d !== '');
+                if (list.length > 0) {
+                    this.domains = list;
+                    console.log('Domains synced from Redis:', this.domains);
+                    return true;
+                }
+            }
+        } catch (err) {
+            console.error('Failed to sync domains from Redis:', err);
+        }
+        return false;
+    }
+
     getNextDomain() {
         if (this.domains.length === 0) {
-            throw new Error('No domains available in the pool');
+            // Last resort: common fallback if nothing is configured
+            const fallbacks = ['test.com'];
+            if (fallbacks.length > 0) {
+                this.domains = fallbacks;
+            } else {
+                throw new Error('No domains available in the pool. Please set DOMAINS env or maildrop_domains in Redis.');
+            }
         }
         const domain = this.domains[this.currentIndex];
         this.currentIndex = (this.currentIndex + 1) % this.domains.length;
@@ -15,7 +38,7 @@ class DomainManager {
     }
 
     setDomains(domains) {
-        this.domains = domains;
+        this.domains = typeof domains === 'string' ? domains.split(',').map(d => d.trim()) : domains;
         this.currentIndex = 0;
     }
 }

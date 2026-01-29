@@ -5,6 +5,7 @@ const fastify = require('fastify')({
 const cors = require('@fastify/cors');
 const EmailGenerator = require('./src/core/EmailGenerator');
 const sessionManager = require('./src/core/SessionManager');
+const domainManager = require('./src/core/DomainManager');
 const { nanoid } = require('nanoid');
 
 let emailGenerator;
@@ -15,6 +16,9 @@ async function setupApp() {
     if (initialized) return fastify;
 
     try {
+        // Sync domains from Redis
+        await domainManager.syncWithRedis(sessionManager.redis);
+
         // Register CORS
         await fastify.register(cors, {
             origin: true, // Be more permissive for debugging Cloudflare Workers
@@ -98,6 +102,15 @@ async function setupApp() {
             const token = nanoid(32);
             await sessionManager.createSession(email, token);
             return { email, token };
+        });
+
+        fastify.get('/api/sync-domains', async (request, reply) => {
+            const success = await domainManager.syncWithRedis(sessionManager.redis);
+            return {
+                success,
+                domains: domainManager.domains,
+                message: success ? 'Domains synced from Redis' : 'Failed to sync (key maildrop_domains might be missing or empty)'
+            };
         });
 
         fastify.get('/otp/:token', async (request, reply) => {
