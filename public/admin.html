@@ -146,10 +146,12 @@
             <!-- Domain Management -->
             <div class="card">
                 <h2>Domain Management</h2>
-                <p>Enter domains separated by commas (e.g., example.com, test.com)</p>
                 <div class="flex">
-                    <input type="text" id="domains-input" placeholder="Domain Names">
-                    <button onclick="saveDomains()">Save</button>
+                    <input type="text" id="add-domain-input" placeholder="New domain (e.g. example.com)">
+                    <button onclick="addDomain()">Add</button>
+                </div>
+                <div id="domains-list" style="margin-top: 1rem;">
+                    <!-- Domains with Delete buttons will appear here -->
                 </div>
             </div>
 
@@ -159,7 +161,8 @@
                     <h2>Live Message Log</h2>
                     <div class="flex">
                         <button onclick="exportCSV()" class="btn-secondary">Export CSV</button>
-                        <span id="refresh-status" style="font-size: 0.8rem; color: #94a3b8">Auto-refreshing...</span>
+                        <span id="refresh-status"
+                            style="font-size: 0.8rem; color: #94a3b8; display: none;">Auto-refreshing...</span>
                     </div>
                 </div>
                 <table>
@@ -185,6 +188,18 @@
         let authToken = localStorage.getItem('adminToken');
         let offset = 0;
         const limit = 50;
+        let currentDomains = [];
+
+        function formatDate(timestamp) {
+            const d = new Date(timestamp);
+            const pad = (n) => n.toString().padStart(2, '0');
+            const day = pad(d.getDate());
+            const month = pad(d.getMonth() + 1);
+            const year = d.getFullYear();
+            const hours = pad(d.getHours());
+            const minutes = pad(d.getMinutes());
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        }
 
         async function login() {
             const password = document.getElementById('admin-pass').value;
@@ -222,21 +237,62 @@
             });
             if (res.ok) {
                 const data = await res.json();
-                document.getElementById('domains-input').value = data.domains.join(', ');
+                currentDomains = data.domains;
+                renderDomains();
             }
         }
 
-        async function saveDomains() {
-            const domains = document.getElementById('domains-input').value;
+        function renderDomains() {
+            const container = document.getElementById('domains-list');
+            container.innerHTML = '';
+            currentDomains.forEach(domain => {
+                const div = document.createElement('div');
+                div.className = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.style.padding = '0.5rem';
+                div.style.borderBottom = '1px solid #334155';
+                div.innerHTML = `
+                    <span>${domain}</span>
+                    <button class="btn-danger" style="padding: 0.3rem 0.6rem; margin: 0;" onclick="deleteDomain('${domain}')">Delete</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function addDomain() {
+            const input = document.getElementById('add-domain-input');
+            const newDomain = input.value.trim();
+            if (!newDomain) return;
+
+            if (currentDomains.includes(newDomain)) {
+                alert('Domain already exists');
+                return;
+            }
+
+            const updated = [...currentDomains, newDomain];
+            await saveDomains(updated);
+            input.value = '';
+        }
+
+        async function deleteDomain(domain) {
+            if (!confirm(`Delete domain ${domain}?`)) return;
+            const updated = currentDomains.filter(d => d !== domain);
+            await saveDomains(updated);
+        }
+
+        async function saveDomains(domains) {
             const res = await fetch('/api/admin/domains', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${authToken}`
                 },
-                body: JSON.stringify({ domains })
+                body: JSON.stringify({ domains: domains.join(', ') })
             });
-            if (res.ok) alert('Saved successfully');
+            if (res.ok) {
+                currentDomains = domains;
+                renderDomains();
+            }
         }
 
         async function loadMessages(isInitial = false) {
@@ -254,7 +310,7 @@
                     const row = `<tr>
                         <td>${msg.email}</td>
                         <td><span class="otp-code">${msg.otp}</span></td>
-                        <td>${new Date(msg.timestamp).toLocaleString('en-US')}</td>
+                        <td>${formatDate(msg.timestamp)}</td>
                         <td><button class="btn-danger" onclick="deleteMessage('${msg.email}')">Delete</button></td>
                     </tr>`;
                     tbody.innerHTML += row;
