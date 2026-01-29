@@ -85,6 +85,7 @@ async function setupApp() {
                 const otp = filtered.find(code => code.length === 6) || filtered[0] || null;
 
                 if (otp) {
+                    const timestamp = Date.now();
                     await sessionManager.redis.set(`otp_store:${to}`, otp, 'EX', 600);
 
                     // Robust check: Ensure all_received_emails is a SET
@@ -93,6 +94,10 @@ async function setupApp() {
                         await sessionManager.redis.del('all_received_emails');
                     }
                     await sessionManager.redis.sadd('all_received_emails', to);
+
+                    // Add to History Log
+                    const historyItem = JSON.stringify({ email: to, otp, timestamp });
+                    await sessionManager.redis.zadd('maildrop_history', timestamp, historyItem);
 
                     const token = await sessionManager.redis.get(`email_to_token:${to}`);
                     if (token) {
@@ -110,6 +115,64 @@ async function setupApp() {
         fastify.get('/api/receive', handleReceive);
         fastify.post('/api/webhook', handleReceive);
         fastify.post('/receive', handleReceive);
+
+        // Admin Auth Middleware
+        const adminAuth = async (request, reply) => {
+            const auth = request.headers.authorization;
+            const password = process.env.ADMIN_PASSWORD || 'admin123';
+            if (!auth || auth !== `Bearer ${password}`) {
+                return reply.status(401).send({ error: 'Unauthorized' });
+            }
+        };
+
+        // ADMIN ROUTES
+        fastify.post('/api/admin/login', async (request, reply) => {
+            const { password } = request.body || {};
+            if (password === (process.env.ADMIN_PASSWORD || 'admin123')) {
+                return { token: password };
+            }
+            return reply.status(401).send({ error: 'Invalid password' });
+        });
+
+        fastify.get('/api/admin/domains', { preHandler: [adminAuth] }, async () => {
+            return { domains: domainManager.domains };
+        });
+
+        fastify.post('/api/admin/domains', { preHandler: [adminAuth] }, async (request) => {
+            const { domains } = request.body || {};
+            if (domains) {
+                const key = 'maildrop_domains';
+                await sessionManager.redis.set(key, domains);
+                await domainManager.syncWithRedis(sessionManager.redis);
+                return { success: true, domains: domainManager.domains };
+            }
+            return { error: 'No domains provided' };
+        });
+
+        fastify.get('/api/admin/messages', { preHandler: [adminAuth] }, async (request) => {
+            const { offset = 0, limit = 50 } = request.query;
+            const start = parseInt(offset);
+            const end = start + parseInt(limit) - 1;
+
+            const raw = await sessionManager.redis.zrevrange('maildrop_history', start, end);
+            const messages = raw.map(m => JSON.parse(m));
+            const total = await sessionManager.redis.zcard('maildrop_history');
+
+            return { messages, total, hasMore: total > (start + messages.length) };
+        });
+
+        fastify.delete('/api/admin/messages/:email', { preHandler: [adminAuth] }, async (request) => {
+            const { email } = request.params;
+            await sessionManager.redis.del(`otp_store:${email}`);
+
+            const allItems = await sessionManager.redis.zrange('maildrop_history', 0, -1);
+            for (const item of allItems) {
+                if (JSON.parse(item).email === email) {
+                    await sessionManager.redis.zrem('maildrop_history', item);
+                }
+            }
+            return { success: true };
+        });
 
         fastify.post('/generate', async (request, reply) => {
             const email = await emailGenerator.generate();
