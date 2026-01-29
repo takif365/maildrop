@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MailDrop Admin - لوحة التحكم</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&family=Inter:wght@300;400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+            --accent: #818cf8;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            padding: 2rem;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        h1,
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            margin-top: 0;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        input,
+        button {
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            margin: 0.5rem 0;
+        }
+
+        input {
+            background: #334155;
+            color: white;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: var(--accent);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+        }
+
+        .btn-secondary {
+            background: #475569;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            text-align: right;
+            padding: 1rem;
+            border-bottom: 1px solid #334155;
+        }
+
+        .badge {
+            background: #334155;
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.3rem;
+            font-size: 0.8rem;
+        }
+
+        .otp-code {
+            font-family: monospace;
+            font-size: 1.2rem;
+            color: #fbbf24;
+            font-weight: bold;
+        }
+
+        .flex {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Login Section -->
+        <div id="login-section" class="card">
+            <h1>تسجيل الدخول للإدارة</h1>
+            <input type="password" id="admin-pass" placeholder="كلمة المرور">
+            <button onclick="login()" style="width: 100%">دخول</button>
+        </div>
+
+        <!-- Dashboard Section -->
+        <div id="admin-section" class="hidden">
+            <div class="toolbar">
+                <h1>لوحة التحكم MailDrop</h1>
+                <button class="btn-secondary" onclick="logout()">خروج</button>
+            </div>
+
+            <!-- Domain Management -->
+            <div class="card">
+                <h2>إدارة الدومينات</h2>
+                <p>أدخل الدومينات مفصولة بفاصلة (مثال: example.com, test.com)</p>
+                <div class="flex">
+                    <input type="text" id="domains-input" placeholder="اسم الدومين">
+                    <button onclick="saveDomains()">حفظ</button>
+                </div>
+            </div>
+
+            <!-- Messages Log -->
+            <div class="card">
+                <div class="toolbar">
+                    <h2>سجل الرسائل الحية</h2>
+                    <div class="flex">
+                        <button onclick="exportCSV()" class="btn-secondary">تصدير CSV</button>
+                        <span id="refresh-status" style="font-size: 0.8rem; color: #94a3b8">تحديث تلقائي...</span>
+                    </div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>الإيميل</th>
+                            <th>كود OTP</th>
+                            <th>الوقت</th>
+                            <th>إجراء</th>
+                        </tr>
+                    </thead>
+                    <tbody id="messages-body">
+                        <!-- Content via JS -->
+                    </tbody>
+                </table>
+                <button id="load-more" onclick="loadMore()" style="width:100%; margin-top:1rem;"
+                    class="btn-secondary hidden">تحميل المزيد</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let authToken = localStorage.getItem('adminToken');
+        let offset = 0;
+        const limit = 50;
+
+        async function login() {
+            const password = document.getElementById('admin-pass').value;
+            const res = await fetch('/api/admin/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                authToken = data.token;
+                localStorage.setItem('adminToken', authToken);
+                showDashboard();
+            } else {
+                alert('كلمة المرور خاطئة');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('adminToken');
+            location.reload();
+        }
+
+        function showDashboard() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('admin-section').classList.remove('hidden');
+            loadDomains();
+            loadMessages(true);
+            setInterval(() => loadMessages(true), 10000); // 10s Auto-Refresh
+        }
+
+        async function loadDomains() {
+            const res = await fetch('/api/admin/domains', {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                document.getElementById('domains-input').value = data.domains.join(', ');
+            }
+        }
+
+        async function saveDomains() {
+            const domains = document.getElementById('domains-input').value;
+            const res = await fetch('/api/admin/domains', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: JSON.stringify({ domains })
+            });
+            if (res.ok) alert('تم الحفظ بنجاح');
+        }
+
+        async function loadMessages(isInitial = false) {
+            if (isInitial) offset = 0;
+            const res = await fetch(`/api/admin/messages?offset=${offset}&limit=${limit}`, {
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const tbody = document.getElementById('messages-body');
+
+                if (isInitial) tbody.innerHTML = '';
+
+                data.messages.forEach(msg => {
+                    const row = `<tr>
+                        <td>${msg.email}</td>
+                        <td><span class="otp-code">${msg.otp}</span></td>
+                        <td>${new Date(msg.timestamp).toLocaleString('ar-EG')}</td>
+                        <td><button class="btn-danger" onclick="deleteMessage('${msg.email}')">حذف</button></td>
+                    </tr>`;
+                    tbody.innerHTML += row;
+                });
+
+                const btn = document.getElementById('load-more');
+                if (data.hasMore) btn.classList.remove('hidden');
+                else btn.classList.add('hidden');
+            }
+        }
+
+        function loadMore() {
+            offset += limit;
+            loadMessages(false);
+        }
+
+        async function deleteMessage(email) {
+            if (!confirm('هل أنت متأكد من حذف هذه الرسالة؟')) return;
+            const res = await fetch(`/api/admin/messages/${email}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            if (res.ok) loadMessages(true);
+        }
+
+        async function exportCSV() {
+            // Simply export what's currently loaded
+            const rows = [['Email', 'OTP', 'Timestamp']];
+            const tableRows = document.querySelectorAll('#messages-body tr');
+            tableRows.forEach(tr => {
+                const cols = tr.querySelectorAll('td');
+                rows.push([cols[0].innerText, cols[1].innerText, cols[2].innerText]);
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8,"
+                + rows.map(e => e.join(",")).join("\n");
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `maildrop_export_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+        }
+
+        if (authToken) showDashboard();
+    </script>
+</body>
+
+</html>

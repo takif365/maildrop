@@ -2,7 +2,23 @@
     "version": 2,
     "rewrites": [
         {
-            "source": "/(.*)",
+            "source": "/api/(.*)",
+            "destination": "/index.js"
+        },
+        {
+            "source": "/otp/(.*)",
+            "destination": "/index.js"
+        },
+        {
+            "source": "/generate",
+            "destination": "/index.js"
+        },
+        {
+            "source": "/receive",
+            "destination": "/index.js"
+        },
+        {
+            "source": "/",
             "destination": "/index.js"
         }
     ]

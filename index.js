@@ -7,6 +7,8 @@ const EmailGenerator = require('./src/core/EmailGenerator');
 const sessionManager = require('./src/core/SessionManager');
 const domainManager = require('./src/core/DomainManager');
 const { nanoid } = require('nanoid');
+const path = require('path');
+const fastifyStatic = require('@fastify/static');
 
 let emailGenerator;
 let initialized = false;
@@ -24,6 +26,12 @@ async function setupApp() {
             origin: true, // Be more permissive for debugging Cloudflare Workers
             methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
             allowedHeaders: ['Content-Type', 'Authorization']
+        });
+
+        // Register static serving for index.html and admin.html
+        await fastify.register(fastifyStatic, {
+            root: path.join(__dirname, 'public'),
+            prefix: '/',
         });
 
         if (!emailGenerator) emailGenerator = new EmailGenerator();
