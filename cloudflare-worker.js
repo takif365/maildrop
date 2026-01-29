@@ -15,8 +15,9 @@ export default {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "User-Agent": "MailDrop-Worker/1.0", // Bypass Vercel Bot Protection
-                "X-Auth-Key": env.AUTH_KEY || "maildrop-secret-2026"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Referer": "https://3rb.xyz/",
+                "X-Worker-Source": "Cloudflare-MailDrop"
             },
             body: JSON.stringify({
                 to: message.to,

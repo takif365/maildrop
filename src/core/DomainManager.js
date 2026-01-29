@@ -8,22 +8,22 @@ class DomainManager {
     async syncWithRedis(redis) {
         try {
             let list = [];
-            const type = await redis.type('maildrop_domains');
+            const key = 'maildrop_domains';
+            const typeValue = await redis.type(key);
 
-            if (type === 'string') {
-                const redisDomains = await redis.get('maildrop_domains');
-                list = redisDomains.split(',').map(d => d.trim()).filter(d => d !== '');
-            } else if (type === 'set') {
-                list = await redis.smembers('maildrop_domains');
+            if (typeValue === 'string') {
+                const data = await redis.get(key);
+                list = data.split(',').map(d => d.trim()).filter(d => d !== '');
+            } else if (typeValue === 'set') {
+                list = await redis.smembers(key);
             }
 
             if (list.length > 0) {
                 this.domains = list;
-                console.log('Domains synced from Redis (' + type + '):', this.domains);
                 return true;
             }
         } catch (err) {
-            console.error('Failed to sync domains from Redis:', err);
+            console.error('Domain Sync Error:', err);
         }
         return false;
     }

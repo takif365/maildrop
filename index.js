@@ -30,14 +30,20 @@ async function setupApp() {
 
         // Routes
         fastify.get('/', async () => {
+            const keys = ['maildrop_domains', 'all_received_emails'];
+            const types = {};
+            for (const key of keys) {
+                types[key] = await sessionManager.redis.type(key);
+            }
+
             return {
                 status: 'online',
                 service: 'MailDrop API',
-                domainsCount: domainManager.domains.length,
+                domains: domainManager.domains,
+                redis_diagnostics: types,
                 env: {
                     hasRedis: !!process.env.REDIS_URL,
-                    hasDomainsEnv: !!process.env.DOMAINS,
-                    maildropDomainsKey: 'maildrop_domains'
+                    hasDomainsEnv: !!process.env.DOMAINS
                 }
             };
         });
