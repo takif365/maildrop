@@ -17,9 +17,15 @@ class EmailGenerator {
             email = `${username}@${domain}`;
 
             // Check if email was used before in Redis Set
-            const isUsed = await sessionManager.redis.sismember('all_received_emails', email);
-            if (!isUsed) {
+            const keyType = await sessionManager.redis.type('all_received_emails');
+            if (keyType === 'string') {
+                await sessionManager.redis.del('all_received_emails');
                 exists = false;
+            } else {
+                const isUsed = await sessionManager.redis.sismember('all_received_emails', email);
+                if (!isUsed) {
+                    exists = false;
+                }
             }
         }
 

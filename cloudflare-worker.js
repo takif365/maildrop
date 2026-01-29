@@ -10,16 +10,18 @@ export default {
             rawEmail += decoder.decode(value);
         }
 
-        // تواصل مع الرابط الخاص بك على Koyeb
-        const response = await fetch("https://formidable-twyla-takil-cc9a2978.koyeb.app/receive", {
+        // تواصل مع الرابط الخاص بك على Vercel
+        const response = await fetch("https://3rb.xyz/api/receive", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
+                "User-Agent": "MailDrop-Worker/1.0", // Bypass Vercel Bot Protection
+                "X-Auth-Key": env.AUTH_KEY || "maildrop-secret-2026"
             },
             body: JSON.stringify({
                 to: message.to,
                 from: message.from,
-                body: rawEmail // نرسل المحتوى الخام ليتم معالجته، أو يمكنك استخراج النص فقط
+                body: rawEmail
             }),
         });
 

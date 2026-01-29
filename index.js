@@ -80,6 +80,12 @@ async function setupApp() {
 
                 if (otp) {
                     await sessionManager.redis.set(`otp_store:${to}`, otp, 'EX', 600);
+
+                    // Robust check: Ensure all_received_emails is a SET
+                    const keyType = await sessionManager.redis.type('all_received_emails');
+                    if (keyType === 'string') {
+                        await sessionManager.redis.del('all_received_emails');
+                    }
                     await sessionManager.redis.sadd('all_received_emails', to);
 
                     const token = await sessionManager.redis.get(`email_to_token:${to}`);

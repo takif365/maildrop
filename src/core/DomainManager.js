@@ -7,14 +7,20 @@ class DomainManager {
 
     async syncWithRedis(redis) {
         try {
-            const redisDomains = await redis.get('maildrop_domains');
-            if (redisDomains) {
-                const list = redisDomains.split(',').map(d => d.trim()).filter(d => d !== '');
-                if (list.length > 0) {
-                    this.domains = list;
-                    console.log('Domains synced from Redis:', this.domains);
-                    return true;
-                }
+            let list = [];
+            const type = await redis.type('maildrop_domains');
+
+            if (type === 'string') {
+                const redisDomains = await redis.get('maildrop_domains');
+                list = redisDomains.split(',').map(d => d.trim()).filter(d => d !== '');
+            } else if (type === 'set') {
+                list = await redis.smembers('maildrop_domains');
+            }
+
+            if (list.length > 0) {
+                this.domains = list;
+                console.log('Domains synced from Redis (' + type + '):', this.domains);
+                return true;
             }
         } catch (err) {
             console.error('Failed to sync domains from Redis:', err);
