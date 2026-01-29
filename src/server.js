@@ -13,56 +13,12 @@ async function start() {
     db = await setupDb();
     emailGenerator = new EmailGenerator(db);
 
-    fastify.register(fastifyStatic, {
-        root: path.join(__dirname, '../public'),
-        prefix: '/',
-    });
-
-    // We can keep the / as health check or let it serve index.html
-    // If index.html exists in /public, it will be served at / by default.
-
-    fastify.get('/health', async (request, reply) => {
-        return { status: 'healthy', service: 'MailDrop' };
-    });
-
-    fastify.post('/receive', async (request, reply) => {
-        const { to, body } = request.body;
-        if (!to || !body) {
-            return reply.status(400).send({ error: 'Missing to or body' });
-        }
-
-        // Extract OTP (4-8 digits)
-        const otpMatch = body.match(/\b\d{4,8}\b/);
-        const otp = otpMatch ? otpMatch[0] : null;
-
-        if (otp) {
-            const token = await sessionManager.redis.get(`email_to_token:${to}`);
-            if (token) {
-                await sessionManager.updateSession(token, { otp });
-                await db.run('INSERT OR IGNORE INTO used_emails (email) VALUES (?)', [to]);
-            }
-        }
-
-        return { success: true };
-    });
-
-    fastify.post('/generate', async (request, reply) => {
-        const email = await emailGenerator.generate();
-        const token = nanoid(32);
-
-        await sessionManager.createSession(email, token);
-
-        return { email, token };
-    });
-
     // --- New API Endpoints ---
 
     fastify.get('/api/gen', async (request, reply) => {
         const email = await emailGenerator.generate();
-        // Even for API, we create a session to track used emails and potentially legacy tokens
         const token = nanoid(32);
         await sessionManager.createSession(email, token);
-
         return { email };
     });
 
@@ -81,6 +37,49 @@ async function start() {
     });
 
     // --- End New API Endpoints ---
+
+    fastify.register(fastifyStatic, {
+        root: path.join(__dirname, '../public'),
+        prefix: '/',
+    });
+
+    const handleReceive = async (request, reply) => {
+        const { to, body } = request.body || request.query || {};
+        if (!to || !body) {
+            return reply.status(400).send({ error: 'Missing to or body' });
+        }
+
+        // Extract OTP (4-8 digits) using the smart logic (duplicated here for now or extract to helper)
+        const candidates = body.match(/\b\d{4,8}\b/g) || [];
+        const currentYear = new Date().getFullYear().toString();
+        const filtered = candidates.filter(code => code !== currentYear);
+        const otp = filtered.find(code => code.length === 6) || filtered[0] || null;
+
+        if (otp) {
+            await sessionManager.redis.set(`otp_store:${to}`, otp, 'EX', 600);
+            const token = await sessionManager.redis.get(`email_to_token:${to}`);
+            if (token) {
+                await sessionManager.updateSession(token, { otp });
+            }
+            await db.run('INSERT OR IGNORE INTO used_emails (email) VALUES (?)', [to]);
+        }
+
+        return { success: true, email: to, otp_found: !!otp };
+    };
+
+    fastify.post('/receive', handleReceive);
+    fastify.post('/api/receive', handleReceive); // New API alias
+    fastify.get('/api/receive', handleReceive);  // For quick testing if needed
+
+    fastify.post('/generate', async (request, reply) => {
+        const email = await emailGenerator.generate();
+        const token = nanoid(32);
+
+        await sessionManager.createSession(email, token);
+
+        return { email, token };
+    });
+
 
     fastify.get('/otp/:token', async (request, reply) => {
         const { token } = request.params;
