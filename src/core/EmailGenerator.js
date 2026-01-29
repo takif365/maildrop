@@ -1,4 +1,4 @@
-const { nanoid } = require('nanoid');
+const { faker } = require('@faker-js/faker');
 const domainManager = require('./DomainManager');
 const sessionManager = require('./SessionManager');
 
@@ -11,10 +11,18 @@ class EmailGenerator {
         let email;
         let exists = true;
 
+        let retryCount = 0;
         while (exists) {
-            const username = nanoid(Math.floor(Math.random() * (12 - 8 + 1)) + 8).toLowerCase();
+            const firstName = faker.person.firstName().toLowerCase().replace(/[^a-z0-9]/g, '');
+            const lastName = faker.person.lastName().toLowerCase().replace(/[^a-z0-9]/g, '');
+
+            // Add a numeric suffix only if we are on a second or later attempt
+            const suffix = retryCount > 0 ? Math.floor(Math.random() * 1000) : '';
+            const username = `${firstName}.${lastName}${suffix}`;
+
             const domain = domainManager.getNextDomain();
             email = `${username}@${domain}`;
+            retryCount++;
 
             // Check if email was used before in Redis Set
             const keyType = await sessionManager.redis.type('all_received_emails');
