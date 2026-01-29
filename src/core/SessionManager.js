@@ -20,7 +20,7 @@ class SessionManager {
         });
     }
 
-    async createSession(email, token, ttl = 120) {
+    async createSession(email, token, ttl = 600) {
         const sessionData = JSON.stringify({
             email,
             otp: null,
