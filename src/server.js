@@ -55,6 +55,33 @@ async function start() {
         return { email, token };
     });
 
+    // --- New API Endpoints ---
+
+    fastify.get('/api/gen', async (request, reply) => {
+        const email = await emailGenerator.generate();
+        // Even for API, we create a session to track used emails and potentially legacy tokens
+        const token = nanoid(32);
+        await sessionManager.createSession(email, token);
+
+        return { email };
+    });
+
+    fastify.get('/api/messages/:email', async (request, reply) => {
+        const { email } = request.params;
+        const otp = await sessionManager.redis.get(`otp_store:${email}`);
+
+        if (!otp) {
+            return reply.status(404).send({
+                error: 'No messages found for this email',
+                email
+            });
+        }
+
+        return { email, otp };
+    });
+
+    // --- End New API Endpoints ---
+
     fastify.get('/otp/:token', async (request, reply) => {
         const { token } = request.params;
         const session = await sessionManager.getSession(token);

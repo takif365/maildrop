@@ -2,7 +2,14 @@ const Redis = require('ioredis');
 
 class SessionManager {
     constructor() {
-        this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+        const redisUrl = process.env.REDIS_URL;
+        if (!redisUrl) {
+            console.warn('REDIS_URL not found in environment variables. Falling back to localhost.');
+        }
+
+        this.redis = new Redis(redisUrl || 'redis://localhost:6379', {
+            tls: redisUrl ? { rejectUnauthorized: false } : undefined
+        });
 
         this.redis.on('error', (err) => {
             console.error('Redis Connection Error:', err);
