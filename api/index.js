@@ -23,6 +23,11 @@ const start = async () => {
         allowedHeaders: ['Content-Type', 'Authorization']
     });
 
+    // Root route for health check
+    fastify.get('/', async () => {
+        return { status: 'online', service: 'MailDrop API', docs: '/api/gen' };
+    });
+
     // API Routes
     fastify.get('/api/gen', async (request, reply) => {
         const email = await emailGenerator.generate();
@@ -91,11 +96,6 @@ const start = async () => {
         return { otp: session.otp, email: session.email };
     });
 
-    // Static files (only if needed on Vercel, usually handled by Vercel directly but kept for compatibility)
-    fastify.register(fastifyStatic, {
-        root: path.join(__dirname, '../public'),
-        prefix: '/public/',
-    });
 
     return fastify;
 };
