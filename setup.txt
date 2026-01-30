@@ -1,0 +1,58 @@
+PROJECT: MAILDROP INFRASTRUCTURE SETUP GUIDE
+Version: 1.0.4 | Branding: TakiLabs
+Note: This document covers server-side setup. The Python Automation Script is handled separately.
+
+--------------------------------------------------
+1. VERCEL CONFIGURATION (BACKEND)
+--------------------------------------------------
+To ensure the automation script can reach the database:
+
+- Disable Deployment Protection:
+  1. Go to Settings > Deployment Protection.
+  2. Set Vercel Authentication to "Disabled".
+  * Why: This allows the Python script and API to connect without manual login bypass.
+
+- Environment Variables:
+  Add the following keys in Vercel:
+  1. ADMIN_PASSWORD: Your dashboard access password.
+  2. REDIS_URL: Your Upstash/Redis connection string.
+  * Warning: Any changes to these keys require a project Redeploy.
+
+--------------------------------------------------
+2. CLOUDFLARE CONFIGURATION (SSL & DNS)
+--------------------------------------------------
+- SSL/TLS Settings:
+  Set SSL mode to "Flexible".
+  * Why: Prevents "Too many redirects" errors when proxying to Vercel.
+
+- DNS & Proxy:
+  Ensure the Proxy status (Orange Cloud) is ENABLED for your domain.
+
+--------------------------------------------------
+3. CLOUDFLARE WORKER (THE ENGINE)
+--------------------------------------------------
+This part handles receiving, parsing, and forwarding emails to your API.
+
+- Creating the Worker:
+  1. Go to Workers & Pages in Cloudflare.
+  2. Create a new Worker and paste the provided code (cloudflare-worker.js).
+  3. Update the endpoint URL in the code to: https://yourdomain.com/api/receive
+
+- Email Routing:
+  1. Go to the Email tab for your domain.
+  2. Select Email Routing > Routing Rules.
+  3. Enable "Catch-all address".
+  4. Set Action to "Send to Worker" and select your Worker.
+
+--------------------------------------------------
+4. AUTOMATION BOT (maildrop_bot.py)
+--------------------------------------------------
+- Function: Automatically generates emails via https://yourdomain.com/api/gen and monitors for OTPs.
+- Features:
+  * Colored CLI interface (White & Green).
+  * Animated hourglass wait indicator (⏳).
+  * Automatic code extraction from messages.
+
+--------------------------------------------------
+Powered by TakiLabs
+--------------------------------------------------
